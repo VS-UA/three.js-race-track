@@ -1,0 +1,12 @@
+{
+    "car": {
+      "type": "sport",
+      "color": "red"
+    },
+    "track": {
+      "type": "racing",
+      "length": 100,
+      "width": 10,
+      "color": "gray"
+    }
+}

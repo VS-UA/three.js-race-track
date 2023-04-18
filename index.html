@@ -187,6 +187,10 @@
 			const rectLight = new THREE.RectAreaLight(0xffffff, 300);
 			rectLight.position.set( x, y + 70, z);
 			rectLight.lookAt( x, y, z );
+			rectLight.visible = true;
+			//rectLight.castShadow = true;
+			rectLight.name = "post_light" + lightnum;
+			console.log(rectLight.name);
 			
 			lightPost.add( rectLight );			
 			lightPost.add(postMesh);
@@ -258,26 +262,46 @@
 			flagMesh.position.set(0.5, 1, 0);
 			racingFlag.add(flagMesh);
 
-			racingFlag.position.set(-50, 0, 0);
+			racingFlag.position.set(0, 35, -300);
 			racingFlag.scale.set(10, 10, 10);
 			racingFlag.name = "flag";
 			scene.add(racingFlag);
 
 			// Create a wind measurer
 			const windMeasure = new THREE.Group();
+			const arrow = new THREE.Group();
+
 			const windArrowGeometry = new THREE.ConeGeometry(5, 16, 16);
 			const windArrowMaterial = new THREE.MeshBasicMaterial({ color: 0x770000 });
 			const windArrow = new THREE.Mesh(windArrowGeometry, windArrowMaterial);
 			windArrow.rotation.x = Math.PI / 2;
-			windArrow.position.set(0, 55, 50);
-			windArrow.name = "windArrow";
-			windMeasure.add(windArrow);
+			windArrow.position.set(0, 0, 20);
+			arrow.add(windArrow);
+
+			const windSpin = new THREE.CylinderGeometry(1, 1, 25, 32);
+			const windSpinMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+			const windSpinMesh = new THREE.Mesh(windSpin, windSpinMaterial);
+			windSpinMesh.rotation.x = Math.PI / 2;
+			windSpinMesh.position.set(0, 0, -12.5);
+			windSpinMesh.geometry.translate(0, 12.5, 0);
+			
+			arrow.position.set(0, 55, 40);
+			arrow.name = "arrow";
+			arrow.add(windSpinMesh);
 
 			const windMeasurerPole = new THREE.CylinderGeometry(3, 3, 100, 32);
 			const windMeasurerPoleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 			const windMeasurerPoleMesh = new THREE.Mesh(windMeasurerPole, windMeasurerPoleMaterial);
 			windMeasurerPoleMesh.position.set(0, 0, 40);
 			windMeasure.add(windMeasurerPoleMesh);
+
+			const windMeasurerBase = new THREE.CylinderGeometry(1, 1, 20, 32);
+			const windMeasurerBaseMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+			const windMeasurerBaseMesh = new THREE.Mesh(windMeasurerBase, windMeasurerBaseMaterial);
+			windMeasurerBaseMesh.position.set(0, 50, 40);
+			windMeasure.add(windMeasurerBaseMesh);
+
+			windMeasure.add(arrow);
 
 			windMeasure.position.set(0, 5, -250);
 			windMeasure.name = "windMeasure";
@@ -292,27 +316,34 @@
 			windTurbine.add(towerMesh);
 
 			// Blades
+			const blades = new THREE.Group();
 			const bladeGeometry = new THREE.BoxGeometry(400, 5, 40);
 			const bladeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
 			const blade1Mesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
 			blade1Mesh.position.set(0, 120, 0);
+			blade1Mesh.scale.set(0.5, 0.5, 0.5);
 			blade1Mesh.rotation.x = Math.PI / 2;
 			blade1Mesh.rotation.y = Math.PI / 4;
-			windTurbine.add(blade1Mesh);
+			blades.add(blade1Mesh);
 
 			const blade2Mesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
 			blade2Mesh.position.set(0, 120, 0);
+			blade2Mesh.scale.set(0.5, 0.5, 0.5);
 			blade2Mesh.rotation.x = Math.PI / 2;
 			blade2Mesh.rotation.y = Math.PI / 4 + (2 * Math.PI) / 3;
-			windTurbine.add(blade2Mesh);
+			blades.add(blade2Mesh);
 
 			const blade3Mesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
 			blade3Mesh.position.set(0, 120, 0);
+			blade3Mesh.scale.set(0.5, 0.5, 0.5);
 			blade3Mesh.rotation.x = Math.PI / 2;
 			blade3Mesh.rotation.y = Math.PI / 4 + (4 * Math.PI) / 3;
-			windTurbine.add(blade3Mesh);
+			blades.add(blade3Mesh);
+			blades.name = "blades";
 
-			windTurbine.position.set(-150, 0, 0);
+			windTurbine.add(blades);
+
+			windTurbine.position.set(-150, 0, 450);
 			windTurbine.name = "windTurbine";
 			scene.add(windTurbine);
 		}
@@ -506,15 +537,41 @@
 			//window.addEventListener('resize', resizeWindow);
 
 			animate();
-
+			var step = 0;
 			// animate the scene
 			function animate() {
+				var post_lights = [];
+				for(var x = 0; x < 8; x++){
+						post_lights[x] = scene.getObjectByName('post_light' + x);
+				}
 				let left_light = scene.getObjectByName('left_light');
 				let right_light = scene.getObjectByName('right_light');
 				const trophy = scene.getObjectByName('trophy');
+				const arrow = scene.getObjectByName('arrow');
+				const flag = scene.getObjectByName('flag');
+				//const blades = scene.getObjectByName('blades');
+				const blades = scene.getObjectByName("windTurbine").getObjectByName("blades");
+
 
 				// rotate the trophy
 				trophy.rotation.y += 0.01;
+
+				// rotate the arrow
+				arrow.rotation.y = Math.cos(step);
+
+				// rotate the flag
+				flag.rotation.x = step * Math.sin(step);
+				flag.rotation.y = step * Math.cos(step);
+				flag.rotation.z = step * Math.sin(step);
+
+				// rotate the blades
+				//blades.rotation.z = Math.sin(step);
+
+				step += 0.01;
+
+				if(step >= 30){
+					step = 0.01;
+				}
 
 				// Move the car forward or backward
 				if (keyW) {
@@ -621,6 +678,12 @@
 					left_light.visible = !left_light.visible;
 					right_light.visible = !right_light.visible;
 					mouse1 = false;
+				}
+				if(mouse2){
+					for(var x = 0; x < 8; x++){
+						post_lights[x].visible = !post_lights[x].visible;
+					}
+					mouse2 = false;
 				}
 				//left_light.applyQuaternion(car.quaternion);
 				//right_light.applyQuaternion(car.quaternion);
