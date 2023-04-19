@@ -549,7 +549,6 @@
 				const trophy = scene.getObjectByName('trophy');
 				const arrow = scene.getObjectByName('arrow');
 				const flag = scene.getObjectByName('flag');
-				//const blades = scene.getObjectByName('blades');
 				const blades = scene.getObjectByName("windTurbine").getObjectByName("blades");
 
 
@@ -565,7 +564,7 @@
 				flag.rotation.z = step * Math.sin(step);
 
 				// rotate the blades
-				//blades.rotation.z = Math.sin(step);
+				blades.rotation.z = Math.sin(step);
 
 				step += 0.01;
 
