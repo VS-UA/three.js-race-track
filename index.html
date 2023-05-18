@@ -12,23 +12,7 @@
 	</style>
 </head>
 <body>
-	<!--
-	<div class="container">
-		<div id="info" class="boxed">
-			<div class="column">
-				<p>
-					"Use <kbd>WASD</kbd> to move the car."
-				</p>
-				<p>
-					"Press <kbd>Space</kbd> to change the camera view."
-				</p>
-				<p>
-					"Click <kbd>Mouse1</kbd> to turn on/off the car lights."
-				</p>
-			</div>
-		</div>
-	</div>
-	-->
+
 	<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
 
 	<script type = "importmap">
@@ -41,9 +25,13 @@
 	</script>
 
 	<script type="module">
+		// O QUE MELHORAR:
+		// AUMENTAR AS DIMENSÕES DO CARRO, COLOCAR MAIS DECORAÇÃO À VOLTA OU NO MEIO DA PISTA, LINHA DE PARTIDA, AJEITAR AS LUZES
+		// TRABALHAR COM LUZ AMBIENTE PARA TROCAR ENTRE DIA E NOITE, PÔR ALGUNS MODELOS 3D IMPORTADOS (Skecthfab)
 		import * as THREE from 'three';
 		import Stats from 'three/addons/libs/stats.module.js';
 		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 		//To keep track of the keyboard and mouse
@@ -53,6 +41,19 @@
 		// car speed variables
 		var carSpeed = 0, carMaxSpeed = 3, carMaxReverseSpeed = -1.5, carAcceleration = 0.01, carBreaking = 0.03, carTurnSpeed = 0.02, 
 		carDecelerate = 0.01, carReverseAcceleration = 0.01;
+
+		let power_up;
+
+		function gui() {
+			const gui = new GUI();
+			const instructions = gui.addFolder('Controls');
+			instructions.add({ W: 'Move forward' }, 'W').name('W').listen();
+			instructions.add({ S: 'Break/Move backward' }, 'S').name('S').listen();
+			instructions.add({ A: 'Turn left' }, 'A').name('A').listen();
+			instructions.add({ D: 'Turn right' }, 'D').name('D').listen();
+			instructions.add({ Space: 'Change POV' }, 'Space').name('Space').listen();
+			instructions.add({ Mouse1: 'Control Lights' }, 'Mouse1').name('Mouse1').listen();
+		}
 
 		// Function to create a car
 		function createCar(type, color = 0x0000ff) {
@@ -147,6 +148,27 @@
 			innerLimitsMesh.rotation.z = -Math.PI / 2;
 			innerLimitsMesh.position.y = 0.02;
 
+			// Create a starting line
+			const numSquares = 10; // Number of squares in the starting line
+			const squareSize = 10; // Size of each square
+			const lineOffset = (numSquares * squareSize) / 2 - squareSize / 2; // Offset to center the line
+
+			for (let i = 0; i < numSquares; i++) {
+				const squareGeometry = new THREE.BoxGeometry(squareSize, squareSize, squareSize);
+				const squareMaterial = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xffffff : 0x000000 });
+				const square = new THREE.Mesh(squareGeometry, squareMaterial);
+				square.position.set(0, -4.95, -300 + (i * squareSize - lineOffset));
+				track.add(square);
+			}
+
+			for (let i = 0; i < numSquares; i++) {
+				const squareGeometry = new THREE.BoxGeometry(squareSize, squareSize, squareSize);
+				const squareMaterial = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x000000 : 0xffffff });
+				const square = new THREE.Mesh(squareGeometry, squareMaterial);
+				square.position.set(10, -4.95, -300 + (i * squareSize - lineOffset));
+				track.add(square);
+			}
+
 			track.add(capsuleMesh);
 			track.add(capsuleMesh2);
 			track.add(outerLimitsMesh);
@@ -190,7 +212,6 @@
 			rectLight.visible = true;
 			//rectLight.castShadow = true;
 			rectLight.name = "post_light" + lightnum;
-			console.log(rectLight.name);
 			
 			lightPost.add( rectLight );			
 			lightPost.add(postMesh);
@@ -347,18 +368,7 @@
 			windTurbine.name = "windTurbine";
 			scene.add(windTurbine);
 		}
-		/*
-		// Update render image size and camera aspect when the window is resized
-		function resizeWindow(eventParam) {
-			const width = window.innerWidth;
-			const height = window.innerHeight;
 
-			scene.camera.aspect = width / height;
-			scene.camera.updateProjectionMatrix();
-
-			scene.renderer.setSize(width, height);
-		}
-		*/
 		document.addEventListener('keydown', onDocumentKeyDown, false);
 		document.addEventListener('keyup', onDocumentKeyUp, false);
 		document.addEventListener('mousedown', onDocumentMouseDown, false);
@@ -436,6 +446,8 @@
 			// initialize scene and plane
 			const scene = new THREE.Scene();
 			scene.background = new THREE.Color(0x00001f);
+
+			gui();
 			
 			// ground
 			const plane = new THREE.PlaneGeometry(20000, 20000, 32);
@@ -448,6 +460,20 @@
 			// track
 			let track = createTrack();
 			scene.add(track);
+
+			// Import mario kart crate model (only works with live server)
+			let power_up;
+			const loader = new GLTFLoader();
+			loader.load(
+				'/power_up/scene.gltf', 
+				function (gltf) {
+					power_up = gltf.scene;
+					power_up.name = 'power';
+					power_up.position.set(0, 0, 300);
+					power_up.scale.set(0.2, 0.2, 0.2);
+					scene.add(power_up);
+				}
+			);
 
 			// lightposts
 			for(var i = 0; i < 8; i++){
@@ -470,36 +496,59 @@
 
 			// create a mesh for the car
 			let car = createCar();
-			car.position.set(1,1,1);
+			//car.position.set(1,1,1);
+
+
 			// headlights of the car
-			const left_light = new THREE.SpotLight(0xffffff, 1.0, 35.0, Math.PI/6, 0.5, 0.3);
-			left_light.position.set(car.position.x - 2.5, car.position.y, car.position.z);
-			console.log(car.position);
-			left_light.target.position.set(0, 0, 100);
+			const left_light = new THREE.SpotLight(0xffffff, 1.0, 35.0, Math.PI/6, 0.5, 0.15);
+			left_light.position.set(car.position.x - 2.5, car.position.y + 1, car.position.z);
+			left_light.target.position.set(car.position.x, car.position.y + 1, car.position.z);
 			left_light.castShadow = true;
 			left_light.shadow.mapSize.width = 1024;
 			left_light.shadow.mapSize.height = 1024;
 			left_light.visible = true;
 			left_light.name = "left_light";
+			
+			car.add(left_light.target);
 
-			const right_light = new THREE.SpotLight(0xffffff, 1.0, 35.0, Math.PI/6, 0.5, 0.3);
-			right_light.position.set(car.position.x + 2.5, car.position.y, car.position.z);
-			right_light.target.position.set(0,0,100);
+			const right_light = new THREE.SpotLight(0xffffff, 1.0, 35.0, Math.PI/6, 0.5, 0.15);
+			right_light.position.set(car.position.x + 2.5, car.position.y + 1, car.position.z);
+			right_light.target.position.set(car.position.x, car.position.y + 1, car.position.z);
 			right_light.castShadow = true;
 			right_light.shadow.mapSize.width = 1024;
 			right_light.shadow.mapSize.height = 1024;
 			right_light.visible = true;
 			right_light.name = "right_light";
 
+			car.add(right_light.target);
+			
 			car.add(left_light);
 			car.add(right_light);
 			scene.add(car);
+
+			function updateLights() {
+				const direction = new THREE.Vector3();
+				car.getWorldDirection(direction); // Get the direction the car is facing
+				console.log(direction);
+				if((direction.z > 0) && (direction.x > 0)){
+					left_light.target.position.set(car.position.x + (direction.x*10000), car.position.y, car.position.z - (direction.z*10000));
+					right_light.target.position.set(car.position.x + (direction.x*10000), car.position.y, car.position.z - (direction.z*10000));
+				}
+				else{
+					left_light.target.position.set(car.position.x + (direction.x*10000), car.position.y, car.position.z + (direction.z*10000));
+					right_light.target.position.set(car.position.x + (direction.x*10000), car.position.y, car.position.z + (direction.z*10000));
+				}
+				if(direction.x > 0){
+					left_light.target.position.set(car.position.x - (direction.x*10000), car.position.y, car.position.z - (direction.z*10000));
+					right_light.target.position.set(car.position.x - (direction.x*10000), car.position.y, car.position.z - (direction.z*10000));
+				}
+			}
 
 			fillScenery(scene);
 
 			// THE LIGHTS
 			// ambient light
-			const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+			const ambientLight = new THREE.AmbientLight(0xffffff, 0.10);
 			scene.add(ambientLight);
 
 			// THE CAMERAS
@@ -542,7 +591,7 @@
 			function animate() {
 				var post_lights = [];
 				for(var x = 0; x < 8; x++){
-						post_lights[x] = scene.getObjectByName('post_light' + x);
+					post_lights[x] = scene.getObjectByName('post_light' + x);
 				}
 				let left_light = scene.getObjectByName('left_light');
 				let right_light = scene.getObjectByName('right_light');
@@ -550,7 +599,12 @@
 				const arrow = scene.getObjectByName('arrow');
 				const flag = scene.getObjectByName('flag');
 				const blades = scene.getObjectByName("windTurbine").getObjectByName("blades");
+				//const power_up = scene.getObjectByName("power");
 
+				// Update car headlights target
+				//left_light.target.position.set(car.position.x, car.position.y, car.position.z);
+				//right_light.target.position.set(car.position.x, car.position.y, car.position.z);
+				updateLights();
 
 				// rotate the trophy
 				trophy.rotation.y += 0.01;
@@ -565,6 +619,9 @@
 
 				// rotate the blades
 				blades.rotation.z = Math.sin(step);
+
+				// move the box
+				//power_up.position.setY(Math.cos(step));
 
 				step += 0.01;
 
@@ -684,10 +741,6 @@
 					}
 					mouse2 = false;
 				}
-				//left_light.applyQuaternion(car.quaternion);
-				//right_light.applyQuaternion(car.quaternion);
-
-				//window.addEventListener('resize', resizeWindow);
 				
 				requestAnimationFrame(animate);
 				renderer.render(scene, activeCamera);
@@ -696,5 +749,23 @@
 
 		window.onload = init;
 	</script>
+	<!--
+	<div id="info" class="boxed">
+		<div class="column">
+			<p>
+				"Use " <kbd>WASD</kbd> " to move the car."
+			</p>
+			<p>
+				"Press " <kbd>Space</kbd> " to change the camera view."
+			</p>
+			<p>
+				"Click " <kbd>Mouse1</kbd> " to turn on/off the car lights."
+			</p>
+			<p>
+				"Click " <kbd>Mouse2</kbd> " to turn on/off the stadium lights."
+			</p>
+		</div>
+	</div>
+-->
 </body>
 </html>
