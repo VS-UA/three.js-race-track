@@ -37,22 +37,195 @@
 		//To keep track of the keyboard and mouse
 		// car controls variables for movement and camera view
 		var keyD = false, keyA = false, keyS = false, keyW = false, space = false, car_view = false, driver_view = false,
-		mouse1 = false, mouse2 = false, mouse_wheel = false;
+		mouse1 = false, mouse2 = false, mouse_wheel = false, sound_fx = false;
 		// car speed variables
 		var carSpeed = 0, carMaxSpeed = 3, carMaxReverseSpeed = -1.5, carAcceleration = 0.01, carBreaking = 0.03, carTurnSpeed = 0.02, 
 		carDecelerate = 0.01, carReverseAcceleration = 0.01;
 
-		let power_up;
+		let power_up, ambientLight;
 
-		function gui() {
+		// create an AudioListener and add it to the camera
+		const listener = new THREE.AudioListener();
+
+		// create a global audio source
+		const backgroundSound = new THREE.Audio( listener );
+
+		// create a global audio source
+		const engineSound = new THREE.Audio( listener );
+
+		// create a global audio source
+		const song = new THREE.Audio( listener );
+
+		// load a sound and set it as the Audio object's buffer
+		const audioLoader = new THREE.AudioLoader();
+		audioLoader.load( './sounds/Chillwave_Nightdrive.mp3', function( buffer ) {
+			backgroundSound.setBuffer( buffer );
+			backgroundSound.setLoop( true );
+			backgroundSound.setVolume( 0.05 );
+		});
+		
+		audioLoader.load( './sounds/car_sound.wav', function( buffer ) {
+			engineSound.setBuffer( buffer );
+			engineSound.setLoop( true );
+			engineSound.setVolume( 0.25 );
+		});
+
+		function gui(scene) {
+			var post_lights = [];
+			for(var x = 0; x < 8; x++){
+				post_lights[x] = scene.getObjectByName('post_light' + x);
+			}
 			const gui = new GUI();
+
+			// Display information about the controls
 			const instructions = gui.addFolder('Controls');
-			instructions.add({ W: 'Move forward' }, 'W').name('W').listen();
-			instructions.add({ S: 'Break/Move backward' }, 'S').name('S').listen();
-			instructions.add({ A: 'Turn left' }, 'A').name('A').listen();
-			instructions.add({ D: 'Turn right' }, 'D').name('D').listen();
-			instructions.add({ Space: 'Change POV' }, 'Space').name('Space').listen();
-			instructions.add({ Mouse1: 'Control Lights' }, 'Mouse1').name('Mouse1').listen();
+			instructions.add({ W: 'Move forward' }, 'W').name('W').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+			instructions.add({ S: 'Break/Move backward' }, 'S').name('S').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+			instructions.add({ A: 'Turn left' }, 'A').name('A').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+			instructions.add({ D: 'Turn right' }, 'D').name('D').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+			instructions.add({ Space: 'Change perspective' }, 'Space').name('Space').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+			instructions.add({ Mouse: 'Lights On/Off' }, 'Mouse').name('Mouse').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+
+			instructions.close();
+
+			// Control the sky color and lights on/off
+			const time = gui.addFolder('Lighting');
+
+			// Create an object to store the color value
+			const colors = {
+				Night: 0x00001f,
+				Day: 0x6cd4ff,
+				Afternoon: 0xffd089
+			};
+
+			const selectedColor = {
+				color: Object.keys(colors)[0]
+			};
+
+			const colorController = time.add(selectedColor, 'color', Object.keys(colors)).name('Sky Color');
+
+			// Change the color background based on the indice selected
+			colorController.onChange(function (selectedKey) {
+				scene.background = new THREE.Color(colors[selectedKey]);
+			});
+			
+
+			// Create an object to store your checkbox value
+			const options = {
+				Lights: true,
+			};
+
+			// Add a checkbox control to the GUI
+			time.add(options, 'Lights').onChange(function (value) {
+				// Callback function executed when the checkbox value changes
+				if (value) {
+					// Checkbox is checked
+					for(var x = 0; x < 8; x++){
+						post_lights[x].visible = !post_lights[x].visible;
+					}
+				} else {
+					// Checkbox is unchecked
+					for(var x = 0; x < 8; x++){
+						post_lights[x].visible = !post_lights[x].visible;
+					}
+				}
+			});
+
+			time.add({ intensity: 0.1 }, 'intensity', 0, 1)
+				.step(0.05)
+				.name('Ambient light intensity')
+				.onChange((value) => {
+					ambientLight.intensity = value;
+				});
+
+			time.add({ post_intensity: 300 }, 'post_intensity', 0, 1000)
+				.step(10)
+				.name('Lights intensity')
+				.onChange((value) => {
+					for(var x = 0; x < 8; x++){
+						post_lights[x].intensity = value;
+					}
+				});
+
+			time.close();
+
+			// Audio controls
+			const audio = gui.addFolder('Audio');
+
+			const music = {
+				Audio: false,
+				Radio : false
+			}
+
+			// Add a checkbox control to the GUI
+			audio.add(music, 'Audio').onChange(function (value) {
+				// Callback function executed when the checkbox value changes
+				if (value) {
+					backgroundSound.play();
+					engineSound.play();
+					sound_fx = true;
+				} else {
+					backgroundSound.stop();
+					engineSound.stop();
+					sound_fx = false;
+				}
+			});
+
+			// Add a checkbox control to the GUI
+			audio.add(music, 'Radio').onChange(function (value) {
+				// Callback function executed when the checkbox value changes
+				if (value) {
+					nextSong();
+				} else {
+					song.stop();
+				}
+			});
+
+			const controlSong = {
+				nextSong: function() {
+					if (music.Radio) {
+						nextSong();
+					}
+				},
+				volume: 0.5
+			};
+
+			audio.add(controlSong, 'nextSong').name('Next song');
+			audio.add(controlSong, 'volume', 0, 1).name('Volume').onChange(function(value) {
+  				song.setVolume(value);
+			});
+
+			audio.close();	
+		}
+
+		// Function to get the next song
+		function nextSong() {
+			const songsFolder = './sounds/songs/';
+			const songs = [
+				'song1.mp3',
+				'song2.mp3',
+				'song3.mp3',
+				'song4.mp3',
+				'song5.mp3',
+				'song6.mp3',
+				'song7.mp3',
+				'song8.mp3'
+			];
+
+			// Generate a random index to select a song
+			const randomIndex = Math.floor(Math.random() * songs.length);
+			const songFilePath = songsFolder + songs[randomIndex];
+
+			audioLoader.load(songFilePath, function(buffer) {
+				song.stop(); // Stop the currently playing song
+				song.setBuffer(buffer);
+				song.setLoop(true);
+				song.setVolume(0.5);
+				song.play();
+				song.onEnded = () => {
+					nextSong();
+				}
+			});
 		}
 
 		// Function to create a car
@@ -107,12 +280,21 @@
 			cabin.position.set(0, 1, 4);
 */
 
+			const mirrorGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.1);
+			const mirrorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+			const leftMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
+			leftMirror.position.set(-0.75, 1.5, 4.2);
+			const rightMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
+			rightMirror.position.set(0.75, 1.5, 4.2);
+
 			let car = new THREE.Group();
 			car.add(carMesh); // add the car mesh to the car group
 			car.add(window); // add the top to the car group
 			//car.add(cabin); // add the cabin to the car group
 			car.add(wheel1); // add the front wheels to the car group
 			car.add(wheel2); // add the back wheels to the car group
+			car.add(leftMirror);
+			car.add(rightMirror);
 			return car; // return the car group
 		}
 
@@ -210,7 +392,6 @@
 			rectLight.position.set( x, y + 70, z);
 			rectLight.lookAt( x, y, z );
 			rectLight.visible = true;
-			//rectLight.castShadow = true;
 			rectLight.name = "post_light" + lightnum;
 			
 			lightPost.add( rectLight );			
@@ -367,6 +548,15 @@
 			windTurbine.position.set(-150, 0, 450);
 			windTurbine.name = "windTurbine";
 			scene.add(windTurbine);
+
+
+			// Create a tire
+			const tireGeometry = new THREE.TorusGeometry(2, 1, 30, 30);
+			const tireMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+			const tire = new THREE.Mesh(tireGeometry, tireMaterial);
+			tire.position.set(-400, 5, 0);
+			tire.name = "tire";
+			scene.add(tire);
 		}
 
 		document.addEventListener('keydown', onDocumentKeyDown, false);
@@ -446,8 +636,6 @@
 			// initialize scene and plane
 			const scene = new THREE.Scene();
 			scene.background = new THREE.Color(0x00001f);
-
-			gui();
 			
 			// ground
 			const plane = new THREE.PlaneGeometry(20000, 20000, 32);
@@ -462,10 +650,11 @@
 			scene.add(track);
 
 			// Import mario kart crate model (only works with live server)
+			/*
 			let power_up;
 			const loader = new GLTFLoader();
 			loader.load(
-				'/power_up/scene.gltf', 
+				'/import_models/assets/power_up/scene.gltf', 
 				function (gltf) {
 					power_up = gltf.scene;
 					power_up.name = 'power';
@@ -474,6 +663,7 @@
 					scene.add(power_up);
 				}
 			);
+			*/
 
 			// lightposts
 			for(var i = 0; i < 8; i++){
@@ -548,7 +738,8 @@
 
 			// THE LIGHTS
 			// ambient light
-			const ambientLight = new THREE.AmbientLight(0xffffff, 0.10);
+			ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+			ambientLight.name = "ambient_light";
 			scene.add(ambientLight);
 
 			// THE CAMERAS
@@ -570,6 +761,8 @@
 			var activeCamera = camera;
 			scene.add(activeCamera);
 
+			//activeCamera.add( listener );
+
 			// THE RENDERER
 			const renderer = new THREE.WebGLRenderer({ antialias: true });
 			renderer.setClearColor(new THREE.Color(0xaaaaaa));
@@ -585,6 +778,8 @@
 
 			//window.addEventListener('resize', resizeWindow);
 
+			gui(scene);
+
 			animate();
 			var step = 0;
 			// animate the scene
@@ -599,6 +794,7 @@
 				const arrow = scene.getObjectByName('arrow');
 				const flag = scene.getObjectByName('flag');
 				const blades = scene.getObjectByName("windTurbine").getObjectByName("blades");
+				const ambient_light = scene.getObjectByName("ambient_light");
 				//const power_up = scene.getObjectByName("power");
 
 				// Update car headlights target
@@ -621,7 +817,7 @@
 				blades.rotation.z = Math.sin(step);
 
 				// move the box
-				//power_up.position.setY(Math.cos(step));
+				//power_up.position.y(Math.cos(step));
 
 				step += 0.01;
 
@@ -689,6 +885,13 @@
 					}
 				}
 
+				// Control the sounds
+				if(carSpeed == 0){
+					engineSound.stop();
+				} else if(sound_fx){
+					engineSound.play();
+				}
+
 				// Make the car move base on it's speed and rotation
 				car.position.x -= carSpeed * Math.sin(car.rotation.y);
 				car.position.z -= carSpeed * Math.cos(car.rotation.y);
@@ -749,23 +952,5 @@
 
 		window.onload = init;
 	</script>
-	<!--
-	<div id="info" class="boxed">
-		<div class="column">
-			<p>
-				"Use " <kbd>WASD</kbd> " to move the car."
-			</p>
-			<p>
-				"Press " <kbd>Space</kbd> " to change the camera view."
-			</p>
-			<p>
-				"Click " <kbd>Mouse1</kbd> " to turn on/off the car lights."
-			</p>
-			<p>
-				"Click " <kbd>Mouse2</kbd> " to turn on/off the stadium lights."
-			</p>
-		</div>
-	</div>
--->
 </body>
 </html>
