@@ -553,12 +553,16 @@
 		}
 
 		function usePowerUp() {
-			audioLoader.load("./sounds/Mario Kart - Star.mp3", function (buffer) {
-				const sound = new THREE.PositionalAudio(listener);
-				sound.setBuffer(buffer);
-				sound.setRefDistance(20);
-				sound.play();
-			});
+			if(sound_fx){
+				backgroundSound.pause();
+				engineSound.pause();
+				audioLoader.load("./sounds/Mario Kart - Star.mp3", function (buffer) {
+					const sound = new THREE.PositionalAudio(listener);
+					sound.setBuffer(buffer);
+					sound.setRefDistance(20);
+					sound.play();
+				});
+			}
 
 			if (carMaterial) {
 				// Double the car variables
@@ -590,7 +594,49 @@
 					// Restore the initial values of the car variables
 					carSpeed = 0, carMaxSpeed = 3, carMaxReverseSpeed = -1.5, carAcceleration = 0.01, carBreaking = 0.03, carTurnSpeed = 0.02, 
 					carDecelerate = 0.01, carReverseAcceleration = 0.01;
+
+					backgroundSound.play();
+					engineSound.play();
 				}, 5000); // Adjust the duration (in milliseconds) as needed
+			}
+		}
+
+		// Define the random path function
+		function getRandomPath() {
+			const radius = 500; // Radius of the circular path
+			const height = 0; // Height of the vertical movement
+
+			const angle = Math.random() * Math.PI * 2; // Random angle between 0 and 2π
+			const x = Math.cos(angle) * radius; // X-coordinate on the circular path
+			const z = Math.sin(angle) * radius; // Z-coordinate on the circular path
+			const y = Math.random() * height; // Random Y-coordinate for vertical movement
+
+			return new THREE.Vector3(x, y, z);
+		}
+
+		// Update the object's position based on the random path
+		function updateObjectPosition(camel) {
+			if(camel){
+				const targetPosition = getRandomPath();
+				const duration = 100000; // Duration in milliseconds
+				const startPosition = camel.position.clone();
+				let startTime = Date.now();
+
+				function animateObject() {
+					const currentTime = Date.now();
+					const elapsedTime = currentTime - startTime;
+					const progress = Math.min(elapsedTime / duration, 1); // Calculate the progress between 0 and 1
+
+					camel.position.lerpVectors(startPosition, targetPosition, progress);
+
+					if (progress < 1) {
+						requestAnimationFrame(animateObject); // Continue the animation
+					} else {
+						updateObjectPosition(camel); // Start a new random path
+					}
+				}
+
+				animateObject();
 			}
 		}
 
@@ -727,6 +773,7 @@
 				}
 			);
 
+			// cactus
 			loader.load(
 				'/import_models/assets/cactus/scene.gltf',
 				(gltf) => {
@@ -737,6 +784,45 @@
 				}
 			)
 
+			// bones
+			loader.load(
+				'/import_models/assets/bones/scene.gltf',
+				(gltf) => {
+					const bones = gltf.scene.clone();
+					bones.position.set(250, 0, -700);
+					bones.scale.set(0.1, 0.1, 0.1);
+					scene.add(bones);
+				}
+			);
+			
+			// entry portal
+			loader.load(
+				'import_models/assets/portal/scene.gltf',
+				(gltf) => {
+					for(let i = 0; i < 2; i++){
+						(
+							(index) => {
+								const portal = gltf.scene.clone();
+								portal.position.set(0, 0, -550 + (index * 1100));
+								portal.scale.set(0.1, 0.1, 0.1);
+								portal.rotation.set(0, Math.PI / 2, 0);
+								scene.add(portal);
+							}
+						)(i);
+					}
+				}
+			);
+
+			let camel;
+			loader.load(
+				'import_models/assets/camel/scene.gltf',
+				(gltf) => {
+					camel = gltf.scene.clone();
+					camel.position.set(100, 6, 0);
+					camel.scale.set(1.5, 1.5, 1.5);
+					scene.add(camel);
+				}
+			)
 
 			// lightposts
 			for(var i = 0; i < 8; i++){
@@ -904,6 +990,9 @@
 						}, 10000);
 					}
 				});
+
+				// animate the camel
+				updateObjectPosition(camel);
 
 				step += 0.01;
 

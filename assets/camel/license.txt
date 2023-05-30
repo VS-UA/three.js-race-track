@@ -1,0 +1,11 @@
+Model Information:
+* title:	Camel 3D
+* source:	https://sketchfab.com/3d-models/camel-3d-db9ab7d6bf2d4e508b825cc640d60fd9
+* author:	FKSON Business Solution (https://sketchfab.com/triaz686)
+
+Model License:
+* license type:	CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/)
+* requirements:	Author must be credited. Modified versions must have the same license. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Camel 3D" (https://sketchfab.com/3d-models/camel-3d-db9ab7d6bf2d4e508b825cc640d60fd9) by FKSON Business Solution (https://sketchfab.com/triaz686) licensed under CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/)
