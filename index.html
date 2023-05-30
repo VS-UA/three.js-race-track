@@ -748,7 +748,7 @@
 
 			const loader = new GLTFLoader();
 			loader.load(
-				'/import_models/assets/power_up/scene.gltf',
+				'/assets/power_up/scene.gltf',
 				(gltf) => {					
 					for (let i = 0; i < 5; i++){
 						((index) => {
@@ -764,7 +764,7 @@
 
 			// windmill
 			loader.load(
-				'/import_models/assets/windmill/scene.gltf',
+				'/assets/windmill/scene.gltf',
 				(gltf) => {
 					const windmill = gltf.scene.clone();
 					windmill.position.set(-50, 0, 0);
@@ -775,7 +775,7 @@
 
 			// cactus
 			loader.load(
-				'/import_models/assets/cactus/scene.gltf',
+				'/assets/cactus/scene.gltf',
 				(gltf) => {
 					const cactus = gltf.scene.clone();
 					cactus.position.set(50, 2, 0);
@@ -786,7 +786,7 @@
 
 			// bones
 			loader.load(
-				'/import_models/assets/bones/scene.gltf',
+				'/assets/bones/scene.gltf',
 				(gltf) => {
 					const bones = gltf.scene.clone();
 					bones.position.set(250, 0, -700);
@@ -797,7 +797,7 @@
 			
 			// entry portal
 			loader.load(
-				'import_models/assets/portal/scene.gltf',
+				'/assets/portal/scene.gltf',
 				(gltf) => {
 					for(let i = 0; i < 2; i++){
 						(
@@ -815,7 +815,7 @@
 
 			let camel;
 			loader.load(
-				'import_models/assets/camel/scene.gltf',
+				'/assets/camel/scene.gltf',
 				(gltf) => {
 					camel = gltf.scene.clone();
 					camel.position.set(100, 6, 0);
