@@ -26,8 +26,7 @@
 
 	<script type="module">
 		// O QUE MELHORAR:
-		// AUMENTAR AS DIMENSÕES DO CARRO, COLOCAR MAIS DECORAÇÃO À VOLTA OU NO MEIO DA PISTA, LINHA DE PARTIDA, AJEITAR AS LUZES
-		// TRABALHAR COM LUZ AMBIENTE PARA TROCAR ENTRE DIA E NOITE, PÔR ALGUNS MODELOS 3D IMPORTADOS (Skecthfab)
+		// AUMENTAR AS DIMENSÕES DO CARRO, COLOCAR MAIS DECORAÇÃO À VOLTA OU NO MEIO DA PISTA, PÔR ALGUNS MODELOS 3D IMPORTADOS (Skecthfab)
 		import * as THREE from 'three';
 		import Stats from 'three/addons/libs/stats.module.js';
 		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -37,12 +36,15 @@
 		//To keep track of the keyboard and mouse
 		// car controls variables for movement and camera view
 		var keyD = false, keyA = false, keyS = false, keyW = false, space = false, car_view = false, driver_view = false,
-		mouse1 = false, mouse2 = false, mouse_wheel = false, sound_fx = false;
+		mouse1 = false, mouse2 = false, mouse_wheel = false, sound_fx = true;
 		// car speed variables
 		var carSpeed = 0, carMaxSpeed = 3, carMaxReverseSpeed = -1.5, carAcceleration = 0.01, carBreaking = 0.03, carTurnSpeed = 0.02, 
 		carDecelerate = 0.01, carReverseAcceleration = 0.01;
 
-		let power_up, ambientLight;
+		let power_up, ambientLight, songIndex = 0;
+
+		// car material
+		let carMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 
 		// create an AudioListener and add it to the camera
 		const listener = new THREE.AudioListener();
@@ -58,16 +60,17 @@
 
 		// load a sound and set it as the Audio object's buffer
 		const audioLoader = new THREE.AudioLoader();
-		audioLoader.load( './sounds/Chillwave_Nightdrive.mp3', function( buffer ) {
+		audioLoader.load( './sounds/GCN Dry Dry Desert - Mario Kart 8 Deluxe OST.mp3', function( buffer ) {
 			backgroundSound.setBuffer( buffer );
 			backgroundSound.setLoop( true );
-			backgroundSound.setVolume( 0.05 );
+			backgroundSound.setVolume( 0.15 ); // 0.15
+			backgroundSound.play();
 		});
 		
 		audioLoader.load( './sounds/car_sound.wav', function( buffer ) {
 			engineSound.setBuffer( buffer );
 			engineSound.setLoop( true );
-			engineSound.setVolume( 0.25 );
+			engineSound.setVolume( 0.20 );
 		});
 
 		function gui(scene) {
@@ -85,8 +88,6 @@
 			instructions.add({ D: 'Turn right' }, 'D').name('D').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
 			instructions.add({ Space: 'Change perspective' }, 'Space').name('Space').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
 			instructions.add({ Mouse: 'Lights On/Off' }, 'Mouse').name('Mouse').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
-
-			instructions.close();
 
 			// Control the sky color and lights on/off
 			const time = gui.addFolder('Lighting');
@@ -153,7 +154,7 @@
 			const audio = gui.addFolder('Audio');
 
 			const music = {
-				Audio: false,
+				Audio: true,
 				Radio : false
 			}
 
@@ -187,7 +188,7 @@
 						nextSong();
 					}
 				},
-				volume: 0.5
+				volume: 0.2
 			};
 
 			audio.add(controlSong, 'nextSong').name('Next song');
@@ -209,23 +210,27 @@
 				'song5.mp3',
 				'song6.mp3',
 				'song7.mp3',
-				'song8.mp3'
+				'song8.mp3',
+				'song9.mp3'
 			];
 
-			// Generate a random index to select a song
-			const randomIndex = Math.floor(Math.random() * songs.length);
-			const songFilePath = songsFolder + songs[randomIndex];
+			const songFilePath = songsFolder + songs[songIndex];
 
 			audioLoader.load(songFilePath, function(buffer) {
 				song.stop(); // Stop the currently playing song
 				song.setBuffer(buffer);
 				song.setLoop(true);
-				song.setVolume(0.5);
+				song.setVolume(0.2);
 				song.play();
 				song.onEnded = () => {
 					nextSong();
 				}
 			});
+
+			songIndex += 1;
+			if (songIndex >= songs.length) {
+				songIndex = 0;
+			}
 		}
 
 		// Function to create a car
@@ -259,9 +264,6 @@
 					windowGeometry = new THREE.BoxGeometry(3, 2, 6);
 					cabinGeometry = new THREE.BoxGeometry(3, 2, 6);
 			}
-
-			// create a material for the car
-			const carMaterial = new THREE.MeshStandardMaterial({ color: color });
 
 			// create a mesh for the car
 			const carMesh = new THREE.Mesh(carGeometry, carMaterial);
@@ -332,14 +334,14 @@
 
 			// Create a starting line
 			const numSquares = 10; // Number of squares in the starting line
-			const squareSize = 10; // Size of each square
-			const lineOffset = (numSquares * squareSize) / 2 - squareSize / 2; // Offset to center the line
+			const squareSize = 9.5; // Size of each square
+			const lineOffset = ((numSquares * squareSize) / 2 - squareSize / 2) + 2.5; // Offset to center the line
 
 			for (let i = 0; i < numSquares; i++) {
 				const squareGeometry = new THREE.BoxGeometry(squareSize, squareSize, squareSize);
 				const squareMaterial = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xffffff : 0x000000 });
 				const square = new THREE.Mesh(squareGeometry, squareMaterial);
-				square.position.set(0, -4.95, -300 + (i * squareSize - lineOffset));
+				square.position.set(0, -4.45, -300 + (i * squareSize - lineOffset));
 				track.add(square);
 			}
 
@@ -347,7 +349,7 @@
 				const squareGeometry = new THREE.BoxGeometry(squareSize, squareSize, squareSize);
 				const squareMaterial = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x000000 : 0xffffff });
 				const square = new THREE.Mesh(squareGeometry, squareMaterial);
-				square.position.set(10, -4.95, -300 + (i * squareSize - lineOffset));
+				square.position.set(9.5, -4.45, -300 + (i * squareSize - lineOffset));
 				track.add(square);
 			}
 
@@ -548,16 +550,50 @@
 			windTurbine.position.set(-150, 0, 450);
 			windTurbine.name = "windTurbine";
 			scene.add(windTurbine);
-
-
-			// Create a tire
-			const tireGeometry = new THREE.TorusGeometry(2, 1, 30, 30);
-			const tireMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-			const tire = new THREE.Mesh(tireGeometry, tireMaterial);
-			tire.position.set(-400, 5, 0);
-			tire.name = "tire";
-			scene.add(tire);
 		}
+
+		function usePowerUp() {
+			audioLoader.load("./sounds/Mario Kart - Star.mp3", function (buffer) {
+				const sound = new THREE.PositionalAudio(listener);
+				sound.setBuffer(buffer);
+				sound.setRefDistance(20);
+				sound.play();
+			});
+
+			if (carMaterial) {
+				// Double the car variables
+				carMaxSpeed *= 2;
+				carTurnSpeed *= 1.01;
+				carMaxReverseSpeed *= 2;
+				carBreaking *= 2;
+
+				// Assuming you have a variable for the car object
+				const originalMaterial = carMaterial.clone();
+				const originalColor = originalMaterial.color.clone();
+
+				// Create a timer to switch the car's color rapidly
+				const colorSwitchInterval = setInterval(() => {
+					// Generate a random color for the car
+					const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+
+					// Apply the random color to the car's material
+					carMaterial.color.copy(randomColor);
+				}, 100); // Adjust the interval duration (in milliseconds) to control the color switching speed
+
+				// Set a timer to revert the car's color and variables to the initial values after 5 seconds
+				setTimeout(() => {
+					clearInterval(colorSwitchInterval); // Clear the color switching interval
+					// Restore the original material and color
+					carMaterial.copy(originalMaterial);
+      				carMaterial.color.copy(originalColor);
+
+					// Restore the initial values of the car variables
+					carSpeed = 0, carMaxSpeed = 3, carMaxReverseSpeed = -1.5, carAcceleration = 0.01, carBreaking = 0.03, carTurnSpeed = 0.02, 
+					carDecelerate = 0.01, carReverseAcceleration = 0.01;
+				}, 5000); // Adjust the duration (in milliseconds) as needed
+			}
+		}
+
 
 		document.addEventListener('keydown', onDocumentKeyDown, false);
 		document.addEventListener('keyup', onDocumentKeyUp, false);
@@ -636,10 +672,21 @@
 			// initialize scene and plane
 			const scene = new THREE.Scene();
 			scene.background = new THREE.Color(0x00001f);
+
+			const stats = new Stats();
+			document.body.appendChild(stats.dom);
+
+			// texture
+			const textureLoader = new THREE.TextureLoader();
+			const texture = textureLoader.load('/textures/sand.jpg');
+			texture.wrapS = THREE.RepeatWrapping;
+			texture.wrapT = THREE.MirroredRepeatWrapping;
+			texture.repeat.set(1, 1);
 			
 			// ground
 			const plane = new THREE.PlaneGeometry(20000, 20000, 32);
-			const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x008000 });
+			const planeMaterial = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
+			planeMaterial.map = texture;
 			const planeMesh = new THREE.Mesh(plane, planeMaterial);
 			planeMesh.rotation.x = -Math.PI / 2;
 			planeMesh.position.set(0, -0.1, 0);
@@ -649,19 +696,47 @@
 			let track = createTrack();
 			scene.add(track);
 
-			// Import mario kart crate model (only works with live server)
-			let power_up;
+			// power up crates from mario kart
+			let _z = 270;
+			const powerUps = [];
+
 			const loader = new GLTFLoader();
 			loader.load(
-				'/power_up/scene.gltf', 
-				function (gltf) {
-					power_up = gltf.scene;
-					power_up.name = 'power';
-					power_up.position.set(0, 0, 300);
-					power_up.scale.set(0.2, 0.2, 0.2);
-					scene.add(power_up);
+				'/import_models/assets/power_up/scene.gltf',
+				(gltf) => {					
+					for (let i = 0; i < 5; i++){
+						((index) => {
+							const powerUp = gltf.scene.clone();
+							powerUp.position.set(0, 0, _z + (index * 15));
+							powerUp.scale.set(0.2, 0.2, 0.2);
+							scene.add(powerUp);
+							powerUps.push(powerUp);
+						})(i);
+					}
 				}
 			);
+
+			// windmill
+			loader.load(
+				'/import_models/assets/windmill/scene.gltf',
+				(gltf) => {
+					const windmill = gltf.scene.clone();
+					windmill.position.set(-50, 0, 0);
+					windmill.scale.set(2, 2, 2);
+					scene.add(windmill);
+				}
+			);
+
+			loader.load(
+				'/import_models/assets/cactus/scene.gltf',
+				(gltf) => {
+					const cactus = gltf.scene.clone();
+					cactus.position.set(50, 2, 0);
+					cactus.scale.set(0.05, 0.05, 0.05);
+					scene.add(cactus);
+				}
+			)
+
 
 			// lightposts
 			for(var i = 0; i < 8; i++){
@@ -717,7 +792,7 @@
 			function updateLights() {
 				const direction = new THREE.Vector3();
 				car.getWorldDirection(direction); // Get the direction the car is facing
-				console.log(direction);
+				//console.log(direction);
 				if((direction.z > 0) && (direction.x > 0)){
 					left_light.target.position.set(car.position.x + (direction.x*10000), car.position.y, car.position.z - (direction.z*10000));
 					right_light.target.position.set(car.position.x + (direction.x*10000), car.position.y, car.position.z - (direction.z*10000));
@@ -792,12 +867,8 @@
 				const arrow = scene.getObjectByName('arrow');
 				const flag = scene.getObjectByName('flag');
 				const blades = scene.getObjectByName("windTurbine").getObjectByName("blades");
-				const ambient_light = scene.getObjectByName("ambient_light");
-				//const power_up = scene.getObjectByName("power");
 
 				// Update car headlights target
-				//left_light.target.position.set(car.position.x, car.position.y, car.position.z);
-				//right_light.target.position.set(car.position.x, car.position.y, car.position.z);
 				updateLights();
 
 				// rotate the trophy
@@ -814,8 +885,25 @@
 				// rotate the blades
 				blades.rotation.z = Math.sin(step);
 
-				// move the box
-				//power_up.position.y(Math.cos(step));
+				// move the boxes
+				// Update position of each power-up
+				powerUps.forEach((powerUp, index) => {
+					const yOffset = Math.sin(Date.now() * 0.004 + index) * 2; // Adjust the speed and magnitude as desired
+					powerUp.position.setY(yOffset + 2);
+					
+					if (car.position.distanceTo(powerUp.position) < 3) {
+						// Make power-up invisible
+						powerUp.visible = false;
+
+						usePowerUp(car);
+						carMaterial.color.setHex(0x0000ff);
+
+						// Set a timeout to make the power-up visible again after 10 seconds
+						setTimeout(() => {
+							powerUp.visible = true;
+						}, 10000);
+					}
+				});
 
 				step += 0.01;
 
