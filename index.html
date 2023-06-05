@@ -25,13 +25,11 @@
 	</script>
 
 	<script type="module">
-		// O QUE MELHORAR:
-		// AUMENTAR AS DIMENSÕES DO CARRO, COLOCAR MAIS DECORAÇÃO À VOLTA OU NO MEIO DA PISTA, PÔR ALGUNS MODELOS 3D IMPORTADOS (Skecthfab)
 		import * as THREE from 'three';
 		import Stats from 'three/addons/libs/stats.module.js';
 		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { Reflector } from 'three/addons/objects/Reflector.js';
 
 		//To keep track of the keyboard and mouse
 		// car controls variables for movement and camera view
@@ -46,6 +44,18 @@
 		// car material
 		let carMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 
+		// Define the variables for the wander behavior for the camel
+		let camelWanderTarget = new THREE.Vector3(); // The target position for wandering
+		const camelWanderRadius = 50; // Radius of the wander circle
+		const camelWanderDistance = 10000; // Distance of the wander circle from the camel
+		const camelWanderMaxForce = 0.05; // Maximum steering force for wander behavior
+
+		// Define the variables for the wander behavior for the tumbleweeds
+		let tumbleweedWanderTarget = new THREE.Vector3(); // The target position for wandering
+		const tumbleweedWanderRadius = 50; // Radius of the wander circle
+		const tumbleweedWanderDistance = 300; // Distance of the wander circle from the tumbleweed
+		const tumbleweedWanderMaxForce = 0.5; // Maximum steering force for wander behavior
+
 		// create an AudioListener and add it to the camera
 		const listener = new THREE.AudioListener();
 
@@ -54,6 +64,9 @@
 
 		// create a global audio source
 		const engineSound = new THREE.Audio( listener );
+
+		// create a positional audio source
+		const powerUpSound = new THREE.PositionalAudio( listener );
 
 		// create a global audio source
 		const song = new THREE.Audio( listener );
@@ -67,10 +80,17 @@
 			backgroundSound.play();
 		});
 		
+		// engine sound effect
 		audioLoader.load( './sounds/car_sound.wav', function( buffer ) {
 			engineSound.setBuffer( buffer );
 			engineSound.setLoop( true );
-			engineSound.setVolume( 0.20 );
+			engineSound.setVolume( 0.20 ); // 0.2
+		});
+
+		// power up sound effect
+		audioLoader.load("./sounds/Mario Kart - Star.mp3", function (buffer) {
+			powerUpSound.setBuffer(buffer);
+			powerUpSound.setRefDistance(5);
 		});
 
 		function gui(scene) {
@@ -88,6 +108,7 @@
 			instructions.add({ D: 'Turn right' }, 'D').name('D').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
 			instructions.add({ Space: 'Change perspective' }, 'Space').name('Space').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
 			instructions.add({ Mouse: 'Lights On/Off' }, 'Mouse').name('Mouse').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
+			instructions.add({ PowerUp: 'Pick it up for extra speed!' }, 'PowerUp').name('PowerUp').listen(false).domElement.getElementsByTagName('input')[0].disabled = true;
 
 			// Control the sky color and lights on/off
 			const time = gui.addFolder('Lighting');
@@ -246,57 +267,73 @@
 			wheel2.position.set(0, 0.5, 0);
 			
 			// Body and Top
-			// create a cube geometry for the car
-			let carGeometry, windowGeometry, cabinGeometry;
-			switch (type) {
-				case "sport":
-					carGeometry = new THREE.BoxGeometry(1.5, 0.8, 3);
-					windowGeometry = new THREE.BoxGeometry(0.8, 0.8, 1.5);
-					cabinGeometry = new THREE.BoxGeometry(1.5, 0.8, 1.5);
-					break;
-				case "f1":
-					carGeometry = new THREE.BoxGeometry(1, 0.5, 2);
-					windowGeometry = new THREE.BoxGeometry(0.5, 0.5, 1);
-					cabinGeometry = new THREE.BoxGeometry(1, 0.5, 1);
-					break;
-				default:
-					carGeometry = new THREE.BoxGeometry(5, 1, 10);
-					windowGeometry = new THREE.BoxGeometry(3, 2, 6);
-					cabinGeometry = new THREE.BoxGeometry(3, 2, 6);
-			}
-
 			// create a mesh for the car
+			const carGeometry = new THREE.BoxGeometry(5, 1, 10);
 			const carMesh = new THREE.Mesh(carGeometry, carMaterial);
 			carMesh.position.set(0, 1, 4);
 
 			// windows of the car
+			const windowGeometry = new THREE.BoxGeometry(3, 2, 6);
 			const windowMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
-			windowMaterial.opacity = 0.5;
+			windowMaterial.opacity = 0.2;
 			windowMaterial.transparent = true;
 			const window = new THREE.Mesh(windowGeometry, windowMaterial);
 			window.position.set(0, 1.5, 4);
 
-			// cabin of the car
-			/*const cabinMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
-			const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
-			cabin.position.set(0, 1, 4);
-*/
-
-			const mirrorGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.1);
-			const mirrorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+			// side mirrors
+			const mirrorGeometry = new THREE.BoxGeometry(1, 0.6, 0.1);
+			const mirrorMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 			const leftMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
-			leftMirror.position.set(-0.75, 1.5, 4.2);
+			leftMirror.position.set(-2.9, 1.75, 1);
+			leftMirror.rotation.set(-Math.PI / 20, 0, 0);
 			const rightMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
-			rightMirror.position.set(0.75, 1.5, 4.2);
+			rightMirror.position.set(2.9, 1.75, 1);
+			rightMirror.rotation.set(-Math.PI / 20, 0, 0);
 
+			// Add mirror effect using Reflector.js
+			const mirrorOptions = {
+				color: 0xb5b5b5,
+				textureWidth: window.innerWidth * window.devicePixelRatio,
+				textureHeight: window.innerHeight * window.devicePixelRatio,
+			};
+			
+			const leftMirrorReflector = new Reflector(mirrorGeometry, mirrorOptions);
+			leftMirrorReflector.position.copy(leftMirror.position);
+			leftMirrorReflector.rotation.copy(leftMirror.rotation);
+			const rightMirrorReflector = new Reflector(mirrorGeometry, mirrorOptions);
+			rightMirrorReflector.position.copy(rightMirror.position);
+			rightMirrorReflector.rotation.copy(rightMirror.rotation);
+
+			// Group the mirror meshes and reflectors
+			const mirrorsGroup = new THREE.Group();
+			mirrorsGroup.add(leftMirror, rightMirror, leftMirrorReflector, rightMirrorReflector);	
+
+			// car headlights static figure representation
+			const headLightGeometry = new THREE.BoxGeometry(0.6, 0.3, 0.1);
+			const headLightMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+			const leftheadLight = new THREE.Mesh(headLightGeometry, headLightMaterial);
+			leftheadLight.position.set(-2, 1, -1);
+			const rightheadLight = new THREE.Mesh(headLightGeometry, headLightMaterial);
+			rightheadLight.position.set(2, 1, -1);
+
+			// car blinkers
+			const blinkerGeometry = new THREE.BoxGeometry(0.2, 0.3, 0.1);
+			const blinkerMaterial = new THREE.MeshPhongMaterial({ color: 0xff9000 });
+			const leftBlinker = new THREE.Mesh(blinkerGeometry, blinkerMaterial);
+			leftBlinker.position.set(-2.4, 1, -1);
+			const rightBlinker = new THREE.Mesh(blinkerGeometry, blinkerMaterial);
+			rightBlinker.position.set(2.4, 1, -1);
+						
 			let car = new THREE.Group();
 			car.add(carMesh); // add the car mesh to the car group
 			car.add(window); // add the top to the car group
-			//car.add(cabin); // add the cabin to the car group
 			car.add(wheel1); // add the front wheels to the car group
 			car.add(wheel2); // add the back wheels to the car group
-			car.add(leftMirror);
-			car.add(rightMirror);
+			car.add(mirrorsGroup); // add the mirrors to the car group (including reflectors)
+			car.add(leftheadLight); // add the left blinker to the car group
+			car.add(rightheadLight); // add the right blinker to the car group
+			car.add(leftBlinker); // add the left blinker to the car group
+			car.add(rightBlinker); // add the right blinker to the car group
 			return car; // return the car group
 		}
 
@@ -511,57 +548,13 @@
 			windMeasure.name = "windMeasure";
 			scene.add(windMeasure);
 
-			// Create a wind turbine
-			const windTurbine = new THREE.Group();
-			const towerGeometry = new THREE.CylinderGeometry(10, 10, 100, 8);
-			const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
-			const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
-			towerMesh.position.set(0, 50, 0);
-			windTurbine.add(towerMesh);
-
-			// Blades
-			const blades = new THREE.Group();
-			const bladeGeometry = new THREE.BoxGeometry(400, 5, 40);
-			const bladeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-			const blade1Mesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
-			blade1Mesh.position.set(0, 120, 0);
-			blade1Mesh.scale.set(0.5, 0.5, 0.5);
-			blade1Mesh.rotation.x = Math.PI / 2;
-			blade1Mesh.rotation.y = Math.PI / 4;
-			blades.add(blade1Mesh);
-
-			const blade2Mesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
-			blade2Mesh.position.set(0, 120, 0);
-			blade2Mesh.scale.set(0.5, 0.5, 0.5);
-			blade2Mesh.rotation.x = Math.PI / 2;
-			blade2Mesh.rotation.y = Math.PI / 4 + (2 * Math.PI) / 3;
-			blades.add(blade2Mesh);
-
-			const blade3Mesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
-			blade3Mesh.position.set(0, 120, 0);
-			blade3Mesh.scale.set(0.5, 0.5, 0.5);
-			blade3Mesh.rotation.x = Math.PI / 2;
-			blade3Mesh.rotation.y = Math.PI / 4 + (4 * Math.PI) / 3;
-			blades.add(blade3Mesh);
-			blades.name = "blades";
-
-			windTurbine.add(blades);
-
-			windTurbine.position.set(-150, 0, 450);
-			windTurbine.name = "windTurbine";
-			scene.add(windTurbine);
 		}
 
 		function usePowerUp() {
-			if(sound_fx){
+			if(sound_fx && !powerUpSound.isPlaying){
 				backgroundSound.pause();
 				engineSound.pause();
-				audioLoader.load("./sounds/Mario Kart - Star.mp3", function (buffer) {
-					const sound = new THREE.PositionalAudio(listener);
-					sound.setBuffer(buffer);
-					sound.setRefDistance(20);
-					sound.play();
-				});
+				powerUpSound.play();
 			}
 
 			if (carMaterial) {
@@ -595,51 +588,61 @@
 					carSpeed = 0, carMaxSpeed = 3, carMaxReverseSpeed = -1.5, carAcceleration = 0.01, carBreaking = 0.03, carTurnSpeed = 0.02, 
 					carDecelerate = 0.01, carReverseAcceleration = 0.01;
 
-					backgroundSound.play();
-					engineSound.play();
+					if(sound_fx){
+						backgroundSound.play();
+						engineSound.play();
+					}
 				}, 5000); // Adjust the duration (in milliseconds) as needed
 			}
 		}
 
-		// Define the random path function
-		function getRandomPath() {
-			const radius = 500; // Radius of the circular path
-			const height = 0; // Height of the vertical movement
+		function wander(camel) {
+			const displacement = new THREE.Vector3();
+			displacement.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1);
+			displacement.normalize();
+			displacement.multiplyScalar(camelWanderRadius);
 
-			const angle = Math.random() * Math.PI * 2; // Random angle between 0 and 2π
-			const x = Math.cos(angle) * radius; // X-coordinate on the circular path
-			const z = Math.sin(angle) * radius; // Z-coordinate on the circular path
-			const y = Math.random() * height; // Random Y-coordinate for vertical movement
+			const wanderForce = new THREE.Vector3();
+			wanderForce.addVectors(camelWanderTarget, displacement);
+			wanderForce.sub(camel.position);
+			wanderForce.normalize();
+			wanderForce.multiplyScalar(camelWanderMaxForce);
 
-			return new THREE.Vector3(x, y, z);
-		}
+			camel.position.add(wanderForce);
 
-		// Update the object's position based on the random path
-		function updateObjectPosition(camel) {
-			if(camel){
-				const targetPosition = getRandomPath();
-				const duration = 100000; // Duration in milliseconds
-				const startPosition = camel.position.clone();
-				let startTime = Date.now();
-
-				function animateObject() {
-					const currentTime = Date.now();
-					const elapsedTime = currentTime - startTime;
-					const progress = Math.min(elapsedTime / duration, 1); // Calculate the progress between 0 and 1
-
-					camel.position.lerpVectors(startPosition, targetPosition, progress);
-
-					if (progress < 1) {
-						requestAnimationFrame(animateObject); // Continue the animation
-					} else {
-						updateObjectPosition(camel); // Start a new random path
-					}
-				}
-
-				animateObject();
+			// Update the wander target position periodically to create a wandering effect
+			if (Math.random() < 0.01) {
+				camelWanderTarget.add(new THREE.Vector3(
+					Math.random() * camelWanderDistance - camelWanderDistance / 2,
+					0,
+					Math.random() * camelWanderDistance - camelWanderDistance / 2
+				));
 			}
 		}
 
+		function wander2(tumbleweed) {
+			const displacement = new THREE.Vector3();
+			displacement.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1);
+			displacement.normalize();
+			displacement.multiplyScalar(tumbleweedWanderRadius);
+
+			const wanderForce = new THREE.Vector3();
+			wanderForce.addVectors(tumbleweedWanderTarget, displacement);
+			wanderForce.sub(tumbleweed.position);
+			wanderForce.normalize();
+			wanderForce.multiplyScalar(tumbleweedWanderMaxForce);
+
+			tumbleweed.position.add(wanderForce);
+
+			// Update the wander target position periodically to create a wandering effect
+			if (Math.random() < 0.01) {
+				tumbleweedWanderTarget.add(new THREE.Vector3(
+					Math.random() * tumbleweedWanderDistance - tumbleweedWanderDistance / 2,
+					0,
+					Math.random() * tumbleweedWanderDistance - tumbleweedWanderDistance / 2
+				));
+			}
+		}
 
 		document.addEventListener('keydown', onDocumentKeyDown, false);
 		document.addEventListener('keyup', onDocumentKeyUp, false);
@@ -762,27 +765,84 @@
 				}
 			);
 
+			const placedPositions = []; // Array to store the positions of already placed windmills and cacti
 			// windmill
 			loader.load(
 				'./assets/windmill/scene.gltf',
 				(gltf) => {
-					const windmill = gltf.scene.clone();
-					windmill.position.set(-50, 0, 0);
-					windmill.scale.set(2, 2, 2);
-					scene.add(windmill);
+					
+					for (let i = 0; i < 10; i++) {
+						((index) => {
+							const windmill = gltf.scene.clone();
+							let windmill_x, windmill_z;
+							let isOverlapping = true;
+
+							// Loop until a non-overlapping position is found
+							while (isOverlapping) {
+								windmill_x = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 500 + 500); // Random X coordinate between -1000 to -500 and 500 to 1000
+								windmill_z = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 500 + 500); // Random Z coordinate between -1000 to -500 and 500 to 1000
+
+								// Check if the new position is overlapping with any previously placed windmills
+								isOverlapping = placedPositions.some((position) => {
+									const distance = Math.sqrt(
+										Math.pow(position.x - windmill_x, 2) +
+										Math.pow(position.z - windmill_z, 2)
+									);
+									return distance < 100; // Adjust the value as per your windmill size
+								});
+							}
+
+							windmill.position.set(windmill_x, 0, windmill_z);
+							windmill.scale.set(4, 4, 4);
+							scene.add(windmill);
+
+							// Store the newly placed windmill position
+							placedPositions.push({ x: windmill_x, z: windmill_z });
+						})(i);
+					}
 				}
 			);
+
 
 			// cactus
 			loader.load(
 				'./assets/cactus/scene.gltf',
 				(gltf) => {
 					const cactus = gltf.scene.clone();
-					cactus.position.set(50, 2, 0);
-					cactus.scale.set(0.05, 0.05, 0.05);
-					scene.add(cactus);
+					const placedPositions = []; // Array to store the positions of already placed cacti
+
+					for (let i = 0; i < 50; i++) {
+						((index) => {
+							let cactus_x, cactus_z;
+							let isOverlapping = true;
+
+							// Loop until a non-overlapping position is found
+							while (isOverlapping) {
+								cactus_x = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 500 + 300); // Random X coordinate between -1000 to -500 and 500 to 1000
+								cactus_z = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 500 + 300); // Random Z coordinate between -1000 to -500 and 500 to 1000
+
+								// Check if the new position is overlapping with any previously placed windmills or cacti
+								isOverlapping = placedPositions.some((position) => {
+									const distance = Math.sqrt(
+										Math.pow(position.x - cactus_x, 2) +
+										Math.pow(position.z - cactus_z, 2)
+									);
+									return distance < 100; // Adjust the value as per your cactus size
+								});
+							}
+
+							const newCactus = cactus.clone();
+							newCactus.position.set(cactus_x, 4, cactus_z);
+							newCactus.scale.set(0.03, 0.03, 0.03);
+							scene.add(newCactus);
+
+							// Store the newly placed cactus position
+							placedPositions.push({ x: cactus_x, z: cactus_z });
+						})(i);
+					}
 				}
-			)
+			);
+
 
 			// bones
 			loader.load(
@@ -813,6 +873,7 @@
 				}
 			);
 
+			// camel
 			let camel;
 			loader.load(
 				'./assets/camel/scene.gltf',
@@ -822,7 +883,50 @@
 					camel.scale.set(1.5, 1.5, 1.5);
 					scene.add(camel);
 				}
-			)
+			);
+
+			// tumbleweed
+			const tumbleweeds = [];
+			loader.load(
+				'./assets/tumbleweed/scene.gltf',
+				(gltf) => {
+					for(let i = 0; i < 3; i++) {
+						(
+							(index) => {
+								const tumbleweed = gltf.scene.clone();
+								tumbleweed.position.set(100, 0, -100 + (index * 100));
+								tumbleweed.scale.set(5, 5, 5);
+								scene.add(tumbleweed);
+								tumbleweeds.push(tumbleweed);
+							}
+						)(i);
+					}
+				}
+			);
+
+			// mountain
+			loader.load(
+				'./assets/mountain/scene.gltf',
+				(gltf) => {
+					const mountain = gltf.scene.clone();
+					mountain.position.set(-1500, -50, 0);
+					mountain.scale.set(20, 20, 20);
+					mountain.rotation.set(0, Math.PI , 0);
+					scene.add(mountain);
+				}
+			);
+
+			// dune
+			loader.load(
+				'./assets/dune/scene.gltf',
+				(gltf) => {
+					const dune = gltf.scene.clone();
+					dune.position.set(1750, -10, 0);
+					dune.scale.set(15, 15, 15);
+					dune.rotation.set(0, -Math.PI / 2, 0);
+					scene.add(dune);
+				}
+			);
 
 			// lightposts
 			for(var i = 0; i < 8; i++){
@@ -845,8 +949,6 @@
 
 			// create a mesh for the car
 			let car = createCar();
-			//car.position.set(1,1,1);
-
 
 			// headlights of the car
 			const left_light = new THREE.SpotLight(0xffffff, 1.0, 35.0, Math.PI/6, 0.5, 0.15);
@@ -873,6 +975,9 @@
 			
 			car.add(left_light);
 			car.add(right_light);
+
+			car.position.set(-25,0,-300);
+			car.rotation.set(0, -Math.PI / 2, 0);
 			scene.add(car);
 
 			function updateLights() {
@@ -935,8 +1040,6 @@
 			// Render the scene
 			renderer.render(scene, activeCamera);
 
-			//window.addEventListener('resize', resizeWindow);
-
 			gui(scene);
 
 			animate();
@@ -952,7 +1055,6 @@
 				const trophy = scene.getObjectByName('trophy');
 				const arrow = scene.getObjectByName('arrow');
 				const flag = scene.getObjectByName('flag');
-				const blades = scene.getObjectByName("windTurbine").getObjectByName("blades");
 
 				// Update car headlights target
 				updateLights();
@@ -968,16 +1070,13 @@
 				flag.rotation.y = step * Math.cos(step);
 				flag.rotation.z = step * Math.sin(step);
 
-				// rotate the blades
-				blades.rotation.z = Math.sin(step);
-
 				// move the boxes
 				// Update position of each power-up
 				powerUps.forEach((powerUp, index) => {
 					const yOffset = Math.sin(Date.now() * 0.004 + index) * 2; // Adjust the speed and magnitude as desired
 					powerUp.position.setY(yOffset + 2);
 					
-					if (car.position.distanceTo(powerUp.position) < 3) {
+					if (car.position.distanceTo(powerUp.position) < 5) {
 						// Make power-up invisible
 						powerUp.visible = false;
 
@@ -992,7 +1091,22 @@
 				});
 
 				// animate the camel
-				updateObjectPosition(camel);
+				if(camel){
+					wander(camel);
+					// put the camel on the ground
+					camel.position.y = 6;
+					camel.rotation.y += 0.001;
+				}
+
+				// animate the tumbleweeds
+				tumbleweeds.forEach((tumbleweed, index) => {
+					if(tumbleweed){
+						wander2(tumbleweed);
+						// put the tumbleweed on the ground
+						tumbleweed.position.y = 0;
+						tumbleweed.rotation.set(0.1, 1, 0.1);
+					}
+				});
 
 				step += 0.01;
 
